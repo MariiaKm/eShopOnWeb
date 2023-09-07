@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Ardalis.GuardClauses;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -61,13 +62,14 @@ public class CheckoutModel : PageModel
             var orderDelivery = new 
             {
                 FinalPrice = order.Total(),
-                Items = order.OrderItems.Select(x => new {Id = x.Id, Units = x.Units}).ToList()
+                OrderItems = order.OrderItems.Select(x=> new{ ProductName = x.ItemOrdered.ProductName, UnitPrice = x.UnitPrice, Units = x.Units}),
+                ShipToAddress = order.ShipToAddress
             };
 
             using var httpClient = new HttpClient();
             StringContent content = new StringContent(JsonSerializer.Serialize(orderDelivery));
             var responseMessage =
-                await httpClient.PostAsync(Environment.GetEnvironmentVariable("OrderReserverUrl"), content);
+                await httpClient.PostAsync(Environment.GetEnvironmentVariable("DeliveryOrderProcessorFuncUrl"), content);
         }
         catch (EmptyBasketOnCheckoutException emptyBasketOnCheckoutException)
         {
