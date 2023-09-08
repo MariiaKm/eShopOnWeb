@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using Ardalis.GuardClauses;
+﻿using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -55,19 +54,8 @@ public class CheckoutModel : PageModel
 
             var updateModel = items.ToDictionary(b => b.Id.ToString(), b => b.Quantity);
             await _basketService.SetQuantities(BasketModel.Id, updateModel);
-            var order = await _orderService.CreateOrderAsync(BasketModel.Id, new Address("123 Main St.", "Kent", "OH", "United States", "44240"));
+            await _orderService.CreateOrderAsync(BasketModel.Id, new Address("123 Main St.", "Kent", "OH", "United States", "44240"));
             await _basketService.DeleteBasketAsync(BasketModel.Id);
-
-            var orderDelivery = new 
-            {
-                FinalPrice = order.Total(),
-                Items = order.OrderItems.Select(x => new {Id = x.Id, Units = x.Units}).ToList()
-            };
-
-            using var httpClient = new HttpClient();
-            StringContent content = new StringContent(JsonSerializer.Serialize(orderDelivery));
-            var responseMessage =
-                await httpClient.PostAsync(Environment.GetEnvironmentVariable("OrderReserverUrl"), content);
         }
         catch (EmptyBasketOnCheckoutException emptyBasketOnCheckoutException)
         {
