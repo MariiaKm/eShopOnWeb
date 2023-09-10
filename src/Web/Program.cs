@@ -1,6 +1,5 @@
 ﻿using System.Net.Mime;
 using Ardalis.ListStartupServices;
-using Azure.Identity;
 using BlazorAdmin;
 using BlazorAdmin.Services;
 using Blazored.LocalStorage;
@@ -22,10 +21,6 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.AddConsole();
-
-var keyVault = builder.Configuration["AZ_KEY_VAULT"];
-builder.Configuration.AddAzureKeyVault(new Uri(keyVault), new DefaultAzureCredential());
-
 
 Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices(builder.Configuration, builder.Services);
 
