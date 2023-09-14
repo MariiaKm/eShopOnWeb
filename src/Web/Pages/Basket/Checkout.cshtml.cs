@@ -1,4 +1,6 @@
-﻿using Ardalis.GuardClauses;
+﻿using System.Text.Json;
+using Ardalis.GuardClauses;
+using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +56,19 @@ public class CheckoutModel : PageModel
 
             var updateModel = items.ToDictionary(b => b.Id.ToString(), b => b.Quantity);
             await _basketService.SetQuantities(BasketModel.Id, updateModel);
-            await _orderService.CreateOrderAsync(BasketModel.Id, new Address("123 Main St.", "Kent", "OH", "United States", "44240"));
+            var order = await _orderService.CreateOrderAsync(BasketModel.Id, new Address("123 Main St.", "Kent", "OH", "United States", "44240"));
+
+            await using var client = new ServiceBusClient(Environment.GetEnvironmentVariable("ServiceBusConnectionString"));
+            ServiceBusSender sender = client.CreateSender("orders");
+
+            var orderDelivery = new
+            {
+                Items = order.OrderItems.Select(x => new { Id = x.Id, Units = x.Units }).ToList()
+            };
+            string messageContent = JsonSerializer.Serialize(orderDelivery);
+            var message = new ServiceBusMessage(messageContent);
+            await sender.SendMessageAsync(message);
+
             await _basketService.DeleteBasketAsync(BasketModel.Id);
         }
         catch (EmptyBasketOnCheckoutException emptyBasketOnCheckoutException)
