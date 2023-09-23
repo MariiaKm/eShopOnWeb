@@ -61,14 +61,27 @@ public class CheckoutModel : PageModel
             await using var client = new ServiceBusClient(Environment.GetEnvironmentVariable("ServiceBusConnectionString"));
             ServiceBusSender sender = client.CreateSender("orders");
 
-            var orderDelivery = new
+            var orderDeliveryServiceBus = new
             {
                 Items = order.OrderItems.Select(x => new { Id = x.Id, Units = x.Units }).ToList()
             };
-            string messageContent = JsonSerializer.Serialize(orderDelivery);
+
+            string messageContent = JsonSerializer.Serialize(orderDeliveryServiceBus);
             var message = new ServiceBusMessage(messageContent);
             await sender.SendMessageAsync(message);
 
+            var orderDeliveryCosmosDb = new
+            {
+                FinalPrice = order.Total(),
+                OrderItems = order.OrderItems.Select(x => new
+                { ProductName = x.ItemOrdered.ProductName, UnitPrice = x.UnitPrice, Units = x.Units }),
+                ShipToAddress = order.ShipToAddress
+            };
+
+            using var httpClient = new HttpClient();
+            StringContent content = new StringContent(JsonSerializer.Serialize(orderDeliveryCosmosDb));
+            var responseMessage = await httpClient.PostAsync(Environment.GetEnvironmentVariable("DeliveryOrderProcessorFuncUrl"), content);
+            
             await _basketService.DeleteBasketAsync(BasketModel.Id);
         }
         catch (EmptyBasketOnCheckoutException emptyBasketOnCheckoutException)
